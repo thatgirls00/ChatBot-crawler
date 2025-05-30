@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+urllib3
+selenium
+pymysql
+python-dotenv==1.1.0
