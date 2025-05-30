@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # .env 로드
-load_dotenv()
+load_dotenv(dotenv_path="/root/hknu_scraper/.env")
 
 def clean_date(date_str):
     try:
@@ -33,7 +33,7 @@ def run_academic_notice():
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
-    # .env에서 DB 연결 정보 불러오기
+    # DB 연결
     conn = pymysql.connect(
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT")),
@@ -46,6 +46,9 @@ def run_academic_notice():
     cursor.execute("SELECT hash FROM academic_notices")
     existing_hashes = set(row[0] for row in cursor.fetchall())
 
+    # 현재 실행 중 중복 제거를 위한 세트
+    seen_hashes_in_this_run = set()
+
     page = 1
     empty_count = 0
     MAX_EMPTY = 3
@@ -55,7 +58,7 @@ def run_academic_notice():
         print(f"📄 페이지 {page} 수집 중...")
 
         data = {
-            "layout": "6b6f7240403536324040666e637431",  # 학사공지 layout
+            "layout": "6b6f7240403536324040666e637431",
             "page": str(page),
             "srchColumn": "",
             "srchWrd": "",
@@ -98,9 +101,11 @@ def run_academic_notice():
             author = author_tag.get_text(strip=True) if author_tag else "작성자 없음"
             hash_value = generate_hash(title, href)
 
-            if hash_value in existing_hashes:
+            # 기존 DB 또는 현재 실행 중 중복인 경우 스킵
+            if hash_value in existing_hashes or hash_value in seen_hashes_in_this_run:
                 continue
 
+            seen_hashes_in_this_run.add(hash_value)
             print(f"📌 {title} | {date} | {author}")
             new_notices.append((title, date, author, href, hash_value))
             added += 1
@@ -116,6 +121,7 @@ def run_academic_notice():
 
         page += 1
 
+    # DB 저장
     if new_notices:
         sql = """
         INSERT INTO academic_notices (title, notice_date, author, link, hash)

@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 
 # .env 파일 로드
-load_dotenv()
+load_dotenv(dotenv_path="/root/hknu_scraper/.env")
 
 # SSL 경고 무시
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

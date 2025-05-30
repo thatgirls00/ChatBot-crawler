@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 
 # .env 로드
-load_dotenv()
+load_dotenv(dotenv_path="/root/hknu_scraper/.env")
 
 def clean_menu_text(text):
     text = text.strip()

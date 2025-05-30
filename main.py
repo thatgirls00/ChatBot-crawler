@@ -10,7 +10,7 @@ from crawler.hankyong_notice import run_hankyong_notice
 from crawler.academic_schedule import run_academic_schedule
 
 def main():
-    load_dotenv()  # .env 파일 로딩
+    load_dotenv(dotenv_path="/root/hknu_scraper/.env")  # .env 파일 로딩
 
     jobs = [
         ("학생식당", run_student_meal),

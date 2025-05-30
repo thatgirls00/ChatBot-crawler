@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 # .env 파일 로드
-load_dotenv()
+load_dotenv(dotenv_path="/root/hknu_scraper/.env")
 
 def clean_date(date_str):
     return date_str.split("(")[0].strip().replace(".", "-")
@@ -27,7 +27,7 @@ def run_scholarship_notice():
 
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # ✅ .env 기반 DB 연결
+    # .env 기반 DB 연결
     conn = pymysql.connect(
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT")),
@@ -39,6 +39,7 @@ def run_scholarship_notice():
     cursor = conn.cursor()
     cursor.execute("SELECT hash FROM scholarship_notices")
     existing_hashes = set(row[0] for row in cursor.fetchall())
+    seen_hashes_in_this_run = set()  # 💡 현재 실행 중 중복 방지용 세트
 
     page = 1
     empty_count = 0
@@ -92,9 +93,11 @@ def run_scholarship_notice():
             author = author_tag.get_text(strip=True) if author_tag else "작성자 없음"
             hash_val = generate_hash(title, href)
 
-            if hash_val in existing_hashes:
+            # DB 또는 현재 실행 중 중복된 경우 건너뜀
+            if hash_val in existing_hashes or hash_val in seen_hashes_in_this_run:
                 continue
 
+            seen_hashes_in_this_run.add(hash_val)
             print(f"📌 {title} | {date} | {author}")
             new_notices.append((title, date, author, href, hash_val))
             added += 1
