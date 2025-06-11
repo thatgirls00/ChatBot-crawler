@@ -15,5 +15,9 @@ __pycache__/
 venv/
 env/
 
-# DB 정보 포함된 파일 (예: config.py, db_config.json 등)
+# DB 정보 포함된 파일
 db_config.py
+db_config.json
+
+# macOS 시스템 파일
+.DS_Store
