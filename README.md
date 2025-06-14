@@ -12,11 +12,14 @@
 ### 📌 공지사항
 - 장학공지: `scholarship_notice.py`
 - 학사공지: `academic_notice.py`
-- 한경공지: `hankyong_notice.py`
+- 환경공지: `hankyong_notice.py`
 - 학사일정: `academic_schedule.py`
 
-## 실행 방법
+## 실행 방법 (로컬)
 ```bash
-1. scp -r ./crawler root@211.188.57.74:/root/hknu_scraper/ # (Local → Server)
-2. python main.py(server)
+python main.py
 
+## 실행 방법 (도커)
+```bash
+docker build -t hknu-crawler .
+docker run --rm hknu-crawler

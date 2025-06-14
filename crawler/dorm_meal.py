@@ -13,9 +13,38 @@ load_dotenv(dotenv_path="/root/hknu_scraper/.env")
 
 def clean_menu_text(text):
     text = text.strip()
-    text = re.sub(r"^-+", "", text)  # 앞 하이픈 제거
+    text = re.sub(r"^-+", "", text)
     text = text.replace("(통합)", "")
     return text.strip()
+
+def clean_trailing_symbols(text):
+    return re.sub(r'[\"*]+$', '', text).strip()
+
+def format_meal(day: str, breakfast: str, lunch: str, dinner: str) -> str:
+    def extract_time_and_menu(meal_text: str):
+        match = re.match(r"(\d{1,2}:\d{2}~\d{1,2}:\d{2})(.*)", meal_text.strip())
+        if match:
+            return match.group(1), match.group(2)
+        else:
+            return "", meal_text.strip()
+
+    # 식단 없음 (공휴일 등) 처리
+    only_msg = breakfast + lunch + dinner
+    if only_msg.strip() and not any(meal_kw in only_msg for meal_kw in ["밥", "국", "김치", "샐러드", "삼각김밥", "샌드위치", "김밥"]):
+        return only_msg.strip()
+
+    result = ""
+
+    if breakfast.strip():
+        result += f"[아침] {clean_trailing_symbols(breakfast.strip())}\n"
+    if lunch.strip():
+        lunch_time, lunch_menu = extract_time_and_menu(lunch)
+        result += f"[점심]{f' {lunch_time}' if lunch_time else ''}\n{clean_trailing_symbols(lunch_menu)}\n"
+    if dinner.strip():
+        dinner_time, dinner_menu = extract_time_and_menu(dinner)
+        result += f"[저녁]{f' {dinner_time}' if dinner_time else ''}\n{clean_trailing_symbols(dinner_menu)}\n"
+
+    return result.strip()
 
 def run_dorm_meal():
     print("🍽️ 한경국립대학교 기숙사식당 식단표")
@@ -40,29 +69,33 @@ def run_dorm_meal():
                 menu_ul = td.find("ul", class_="plan")
 
                 if date_tag and menu_ul:
-                    date_text = date_tag.get_text(strip=True)
+                    raw_date = date_tag.get_text(strip=True)[:10]
                     try:
-                        date_obj = datetime.strptime(date_text[:10], "%Y.%m.%d")
+                        date_obj = datetime.strptime(raw_date, "%Y.%m.%d")
                         date_formatted = date_obj.strftime("%Y-%m-%d")
                     except ValueError:
-                        date_formatted = date_text
+                        date_formatted = f"2025-06-{raw_date.zfill(2)}"
 
                     menu_items = [
                         clean_menu_text(li.get_text())
                         for li in menu_ul.find_all("li")
                         if li.get_text(strip=True)
                     ]
-                    menu_text = "\n".join(menu_items)
 
-                    hash_val = hashlib.sha256((date_formatted + menu_text).encode("utf-8")).hexdigest()
+                    breakfast = menu_items[0] if len(menu_items) > 0 else ""
+                    lunch = menu_items[1] if len(menu_items) > 1 else ""
+                    dinner = menu_items[2] if len(menu_items) > 2 else ""
+
+                    formatted_menu = format_meal(date_formatted, breakfast, lunch, dinner)
+                    hash_val = hashlib.sha256((date_formatted + formatted_menu).encode("utf-8")).hexdigest()
 
                     meals.append({
                         "date": date_formatted,
-                        "menu": menu_text,
+                        "menu": formatted_menu,
                         "hash": hash_val
                     })
 
-    # .env 기반 정보 사용
+    # DB 연결 및 저장
     conn = pymysql.connect(
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT")),
@@ -97,7 +130,7 @@ def run_dorm_meal():
     conn.commit()
     conn.close()
 
-    # 출력 결과
+    # 결과 출력
     if new_meals:
         for meal in new_meals:
             print(f"📅 날짜: {meal['date']}")
